@@ -51,7 +51,7 @@ function build_sphinx_demo {
 }
 
 function ensure_that_documentation_is_built {
-    if [[ ! -f _build/html/index.html ]] ; then
+    if [[ ! -f "_build/docs/apache-airflow/${RELEASE_VERSION}/index.html" ]] ; then
         echo "Documentation is not built. Start build."
         build_sphinx_demo
     fi

@@ -15,18 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-Welcome to Theme demo's documentation!
-======================================
+Nested page
+===========
 
 .. toctree::
     :maxdepth: 1
-    :caption: References
 
-    playground
-    nested/index
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`search`
+    deep-nested/index

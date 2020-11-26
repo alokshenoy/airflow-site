@@ -3,8 +3,9 @@ import json
 import sys
 
 import yaml
+import os
 
-ROOT_DIR = os.path.abs()
+ROOT_DIR = os.path.dirname(os.path.join(os.path.abspath(__file__), os.path.pardir))
 
 def load_yaml(filepath: str):
     with open(filepath) as f:
