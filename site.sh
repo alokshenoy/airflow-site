@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euox pipefail
+set -euo pipefail
 
 WORKING_DIR="$(pwd)"
 MY_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -61,16 +61,25 @@ will be executed for all supported files
 EOF
 }
 
+function log {
+    GRAY='\033[1;30m'
+    NC='\033[0m' # No Color
+    echo -e "${GRAY}$(date +'%Y-%m-%d %H:%M:%S'):INFO: ${*} ${NC}" >&2;
+}
+
 function ensure_image_exists {
+    log "Checking if image exists: ${IMAGE_NAME}"
     if [[ ! $(docker images "${IMAGE_NAME}" -q) ]]; then
-        echo "Image not exists."
+        log "Image not exists."
         build_image
     fi
 }
 
 function ensure_container_exists {
+    log "Checking if container exists: ${CONTAINER_NAME}"
+
     if [[ ! $(docker container ls -a --filter="Name=${CONTAINER_NAME}" -q ) ]]; then
-        echo "Container not exists"
+        log "Container not exists"
         docker run \
             --detach \
             --name "${CONTAINER_NAME}" \
@@ -83,37 +92,41 @@ function ensure_container_exists {
 }
 
 function ensure_container_running {
+    log "Checking if container running: ${CONTAINER_NAME}"
     container_status="$(docker inspect "${CONTAINER_NAME}" --format '{{.State.Status}}')"
-    echo "Current container status: ${container_status}"
+    log "Current container status: ${container_status}"
     if [[ ! "${container_status}" == "running" ]]; then
-        echo "Container not running. Starting the container."
+        log "Container not running. Starting the container."
         docker start "${CONTAINER_NAME}"
     fi
 }
 
 function ensure_node_module_exists {
+    log "Check if node module exists"
     if [[ ! -d landing-pages/node_modules/ ]] ; then
-        echo "Missing node dependencies. Start installation."
+        log "Missing node dependencies. Start installation."
         run_command "/opt/site/landing-pages/" yarn install
-        echo "Dependencies installed."
+        log "Dependencies installed."
     fi
 }
 
 function ensure_that_website_is_build {
+    log "Check if landing-pages/dist/index.html file exists"
     if [[ ! -f landing-pages/dist/index.html ]] ; then
-        echo "The website is not built. Start building."
+        log "The website is not built. Start building."
         run_command "/opt/site/landing-pages/" npm run build
-        echo "The website builded."
+        log "The website builded."
     fi
 }
 
 function build_image {
-    echo "Start building image"
+    log "Start building image"
     docker build -t airflow-site .
-    echo "End building image"
+    log "End building image"
 }
 
 function run_command {
+    log "Running command: $*"
     working_directory=$1
     shift
     if [[ -f /.dockerenv ]] ; then
@@ -136,6 +149,7 @@ function run_command {
 }
 
 function prepare_environment {
+    log "Preparing environment"
     if [[ ! -f /.dockerenv ]] ; then
         ensure_image_exists
         ensure_container_exists
@@ -202,16 +216,20 @@ function run_lint {
 }
 
 function prepare_docs_index {
+    log "Preparing docs index"
     run_command "/opt/site/docs-archive/" ./show_docs_index_json.sh > landing-pages/site/static/_gen/docs-index.json
 }
 
 function build_landing_pages {
+    log "Building landing pages"
     run_command "/opt/site/landing-pages/" npm run index
     prepare_docs_index
     run_command "/opt/site/landing-pages/" npm run build
 }
 
 function build_site {
+    log "Building full site"
+
     if [[ ! -f "landing-pages/dist/index.html" ]]; then
         build_landing_pages
     fi
@@ -219,54 +237,55 @@ function build_site {
     rm -rf dist/*
     cp -R landing-pages/dist/. dist/
     mkdir -p dist/docs/
-    rm -rf dist/docs/*
-    for doc_path in docs-archive/*/ ; do
-        version="$(basename -- "${doc_path}")"
-        cp -R "${doc_path}" "dist/docs/${version}/"
-    done
-    cp -R "docs-archive/$(cat docs-archive/stable.txt)" "dist/docs/stable/"
-    cat > dist/docs/index.html << EOF
-<!DOCTYPE html>
-<html>
-   <head><meta http-equiv="refresh" content="1; url=stable/" /></head>
-   <body></body>
-</html>
-EOF
+#    rm -rf dist/docs/*
+
+#    for doc_path in docs-archive/*/ ; do
+#        version="$(basename -- "${doc_path}")"
+#        cp -R "${doc_path}" "dist/docs/${version}/"
+#    done
+#    cp -R "docs-archive/$(cat docs-archive/stable.txt)" "dist/docs/stable/"
+#    cat > dist/docs/index.html << EOF
+#<!DOCTYPE html>
+#<html>
+#   <head><meta http-equiv="refresh" content="1; url=stable/" /></head>
+#   <body></body>
+#</html>
+#EOF
 }
 
 
 function cleanup_environment {
     container_status="$(docker inspect "${CONTAINER_NAME}" --format '{{.State.Status}}')"
-    echo "Current container status: ${container_status}"
+    log "Current container status: ${container_status}"
     if [[ "${container_status}" == "running" ]]; then
-        echo "Container running. Killing the container."
+        log "Container running. Killing the container."
         docker kill "${CONTAINER_NAME}"
     fi
 
     if [[ $(docker container ls -a --filter="Name=${CONTAINER_NAME}" -q ) ]]; then
-        echo "Container exists. Removing the container."
+        log "Container exists. Removing the container."
         docker rm "${CONTAINER_NAME}"
     fi
 
     if [[ $(docker images "${IMAGE_NAME}" -q) ]]; then
-        echo "Images exists. Deleeting the image."
+        log "Images exists. Deleeting the image."
         docker rmi "${IMAGE_NAME}"
     fi
 }
 
 function prepare_theme {
+    log "Preparing theme files"
     SITE_DIST="landing-pages/dist"
     THEME_GEN="sphinx_airflow_theme/sphinx_airflow_theme/static/_gen"
     mkdir -p "${THEME_GEN}/css" "${THEME_GEN}/js"
     cp ${SITE_DIST}/docs.*.js "${THEME_GEN}/js/docs.js"
     cp ${SITE_DIST}/scss/main.min.*.css "${THEME_GEN}/css/main.min.css"
     cp ${SITE_DIST}/scss/main-custom.min.*.css "${THEME_GEN}/css/main-custom.min.css"
-    echo "Successful copied required files"
+    log "Successful copied required files"
 }
 
 if [[ "$#" -eq 0 ]]; then
-    echo "You must provide at least one command."
-    echo
+    log "You must provide at least one command."
     usage
     exit 1
 fi

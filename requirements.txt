@@ -1,1 +1,2 @@
 pre-commit==1.18.3
+PyYAML==5.3.1

@@ -19,6 +19,36 @@
 
 import {compareVersion} from "./sortVersions";
 
+const getCurrentPageInfo = () => {
+
+  const [, ,currentPackageName, currentVersion, ...pagePathParts] = document.location.pathname.split("/");
+  const pagePath = pagePathParts.join("/");
+  return {currentVersion, currentPackageName, pagePath};
+};
+
+const updateVersionSelector = (versionSelector, packageAllVersions, stableVersion) => {
+  console.log("updateVersionSelector:", {versionSelector, packageAllVersions, stableVersion});
+
+  const templateText = versionSelector.querySelector("#version-item-template").innerText;
+  let templateElement = document.createElement("div");
+  templateElement.innerHTML = templateText;
+  templateElement = templateElement.firstElementChild;
+
+  const dropdownMenu = versionSelector.querySelector(".dropdown-menu");
+
+  const {currentPackageName, pagePath} = getCurrentPageInfo();
+
+  const appendNewVersionLink = (targetVersion, label) => {
+    const newElement = templateElement.cloneNode(true);
+    const newDocsLink = `/docs/${targetVersion}/${currentPackageName}/${pagePath}`;
+    newElement.setAttribute("href", newDocsLink);
+    newElement.innerText = label;
+    dropdownMenu.appendChild(newElement);
+  };
+  appendNewVersionLink("stable", `Stable (${stableVersion})`);
+  packageAllVersions.forEach((version) => appendNewVersionLink(version, version));
+};
+
 const runVersionSelector = () => {
   const versionSelectors = window.document.querySelectorAll(".docs-version-selector");
 
@@ -26,33 +56,21 @@ const runVersionSelector = () => {
     return;
   }
 
-  fetch("/_gen/docs-index.json")
+  fetch("/_gen/packages-metadata.json")
     .then((resp) => resp.json())
-    .then(({stable, versions}) => {
-      versions = versions.sort(compareVersion).reverse();
-      versionSelectors.forEach((versionSelector) => {
-        const templateText = versionSelector.querySelector("#version-item-template").innerText;
-        let templateElement = document.createElement("div");
-        templateElement.innerHTML = templateText;
-        templateElement = templateElement.firstElementChild;
+    .then((packageInfos) => {
+      const {currentPackageName} = getCurrentPageInfo();
+      const currentPackageInfo = packageInfos.find((d) => d["package-name"] === currentPackageName);
+      if (!currentPackageInfo) {
+        // eslint-disable-next-line no-console
+        console.error(`Unable to find package info for ${currentPackageName}`);
+        return;
+      }
+      console.log("currentPackageInfo=", currentPackageInfo);
 
-        const dropdownMenu = versionSelector.querySelector(".dropdown-menu");
-
-
-        const currentVersion = window.document.location.pathname.split("/")[2];
-
-        const appendNewVersionLink = (location, label) => {
-          const newElement = templateElement.cloneNode(true);
-          const newDocsLink = document.location.toString().replace(
-            `/${currentVersion}/`, `/${location}/`
-          );
-          newElement.setAttribute("href", newDocsLink);
-          newElement.innerText = label;
-          dropdownMenu.appendChild(newElement);
-        };
-        appendNewVersionLink("stable", `Stable (${stable})`);
-        versions.forEach((version) => appendNewVersionLink(version, version));
-      });
+      const packageAllVersions = currentPackageInfo["all-versions"].sort(compareVersion).reverse();
+      const stableVersion = currentPackageInfo["stable-version"];
+      versionSelectors.forEach((d) => updateVersionSelector(d, packageAllVersions, stableVersion));
     });
 };
 
