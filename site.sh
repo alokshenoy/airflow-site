@@ -115,7 +115,7 @@ function ensure_that_website_is_build {
     if [[ ! -f landing-pages/dist/index.html ]] ; then
         log "The website is not built. Start building."
         run_command "/opt/site/landing-pages/" npm run build
-        log "The website builded."
+        log "The website built."
     fi
 }
 
@@ -227,6 +227,25 @@ function build_landing_pages {
     run_command "/opt/site/landing-pages/" npm run build
 }
 
+function create_index {
+    output_path="$1/index.html"
+    log "Creating index: ${output_path}"
+    cat > "${output_path}" << EOF
+<!DOCTYPE html>
+<html>
+   <head><meta http-equiv="refresh" content="1; url=stable/" /></head>
+   <body></body>
+</html>
+EOF
+}
+
+function verbose_cp_r {
+    source=$1
+    target=$2
+    log "Copying '$source' to '$target'"
+    mkdir -p "${target}"
+    cp -R "$source" "$target"
+}
 function build_site {
     log "Building full site"
 
@@ -235,22 +254,39 @@ function build_site {
     fi
     mkdir -p dist
     rm -rf dist/*
+    log "## Copying docs for apache-airflow package"
+    log "Copying 'landing-pages/dist/.' to 'dist/'"
     cp -R landing-pages/dist/. dist/
     mkdir -p dist/docs/
-#    rm -rf dist/docs/*
 
-#    for doc_path in docs-archive/*/ ; do
-#        version="$(basename -- "${doc_path}")"
-#        cp -R "${doc_path}" "dist/docs/${version}/"
-#    done
-#    cp -R "docs-archive/$(cat docs-archive/stable.txt)" "dist/docs/stable/"
-#    cat > dist/docs/index.html << EOF
-#<!DOCTYPE html>
-#<html>
-#   <head><meta http-equiv="refresh" content="1; url=stable/" /></head>
-#   <body></body>
-#</html>
-#EOF
+    for doc_path in docs-archive/*/ ; do
+        version="$(basename -- "${doc_path}")"
+        verbose_cp_r "${doc_path}" "dist/docs/apache-airflow/${version}/"
+    done
+    verbose_cp_r "docs-archive/$(cat docs-archive/stable.txt)" "dist/docs/apache-airflow/stable/"
+    create_index 'dist/docs/apache-airflow'
+    log "Copying docs for providers"
+    for D in docs-packages-archive/*; do
+        if [ ! -d "${D}" ]; then
+            continue;
+        fi
+        package_name="$(basename -- "${D}")"
+        # Is this documentation versioned?
+        if [ -f "${D}/stable.txt" ]; then
+            for doc_path in "${D}"/*/ ; do
+                version="$(basename -- "${doc_path}")"
+                verbose_cp_r "${doc_path}" "dist/docs/${package_name}/${version}/"
+            done
+            stable_version="$(cat "${D}/stable.txt")"
+            verbose_cp_r "${D}/${stable_version}/" "dist/docs/${package_name}/stable/"
+            create_index "dist/docs/${package_name}"
+        else
+            verbose_cp_r "${D}/" "dist/docs/${package_name}/"
+        fi
+    done;
+
+    log "Preparing dist/_gen/packages-metadata.json"
+    python dump-docs-package-metadata.py > "dist/_gen/packages-metadata.json"
 }
 
 

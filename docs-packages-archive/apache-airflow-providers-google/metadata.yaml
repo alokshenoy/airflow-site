@@ -1,5 +1,0 @@
----
-package-name: "apache-airflow-providers-google"
-stable-version: "0.0.1"
-all-versions:
-  - "0.0.1"

@@ -21,12 +21,13 @@ import {compareVersion} from "./sortVersions";
 
 const getCurrentPageInfo = () => {
 
-  const [, ,currentPackageName, currentVersion, ...pagePathParts] = document.location.pathname.split("/");
+  const [, , currentPackageName, currentVersion, ...pagePathParts] = document.location.pathname.split("/");
   const pagePath = pagePathParts.join("/");
   return {currentVersion, currentPackageName, pagePath};
 };
 
 const updateVersionSelector = (versionSelector, packageAllVersions, stableVersion) => {
+  // eslint-disable-next-line no-console
   console.log("updateVersionSelector:", {versionSelector, packageAllVersions, stableVersion});
 
   const templateText = versionSelector.querySelector("#version-item-template").innerText;
@@ -66,6 +67,7 @@ const runVersionSelector = () => {
         console.error(`Unable to find package info for ${currentPackageName}`);
         return;
       }
+      // eslint-disable-next-line no-console
       console.log("currentPackageInfo=", currentPackageInfo);
 
       const packageAllVersions = currentPackageInfo["all-versions"].sort(compareVersion).reverse();

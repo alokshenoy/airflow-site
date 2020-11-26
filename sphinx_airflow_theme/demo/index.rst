@@ -18,15 +18,19 @@
 Welcome to Theme demo's documentation!
 ======================================
 
+AAA
+
 .. toctree::
     :maxdepth: 1
     :caption: References
 
     playground
-    nested/index
+
+AAA
 
 Indices and tables
 ==================
 
 * :ref:`genindex`
+* :ref:`modindex`
 * :ref:`search`
